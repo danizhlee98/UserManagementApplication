@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Supabase;
 using UMA.Models;
+using UMA.Models.Dto.Response;
 using UMA.Models.Entity;
 using UMA.Services;
 
@@ -13,6 +15,7 @@ public class UserController : Controller
     private readonly IConfiguration _configuration;
     private readonly IUserService _userService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private string _bucketName = "profile-picture";
     public UserController(IUserService userService, IHttpClientFactory httpClientFactory,
         IConfiguration configuration)
     {
@@ -37,7 +40,7 @@ public class UserController : Controller
     }
 
     [HttpGet("Profile")]
-    public async Task<User> GetUser(string email)
+    public async Task<UserRequest> GetUser(string email)
     {
         var user = await this._userService.GetUserByEmail(email);
 
@@ -46,22 +49,22 @@ public class UserController : Controller
 
     // POST: UserController/Edit/5
     [HttpPut("Edit")]
-    public async Task<IActionResult> Edit(UserRequest userRequest)
+    public async Task<UserResponse> Edit(UserRequest userRequest)
     {
         try
         {
             await this._userService.UpdateUserAsync(userRequest);
 
-            return Ok("User created successfully");
+            return new UserResponse { Message = "User update successfully", Success = true };
         }
         catch
         {
-            return BadRequest("Error updating user");
+            return new UserResponse { Message = "Error updating user", Success = false };
         }
     }
 
     [HttpPost("upload")]
-    public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file, [FromForm] string firstName)
+    public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file, [FromForm] string? email)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No file uploaded.");
@@ -74,17 +77,19 @@ public class UserController : Controller
         }
 
         // Generate a unique filename
-        var fileName = $"{firstName}-{DateTimeOffset.UtcNow}-{file.FileName}";
+        var fileName = $"{email}-{file.FileName}";
 
         // Upload to Supabase Storage via REST API
-        var supabaseUrl = _configuration.GetValue<string>("Supabase:ProjectUrl") + fileName;
-        var supabaseKey = "YOUR_SERVICE_ROLE_KEY"; // service key from Supabase (server side)
+        var supabaseUrl = _configuration.GetValue<string>("Supabase:ProjectUrl");
+        var supabaseKey = _configuration.GetValue<string>("Supabase:ServiceRoleKey");
+
+        var uploadUrl = $"{supabaseUrl}/storage/v1/object/{_bucketName}/{fileName}";
 
         var client = _httpClientFactory.CreateClient();
         var content = new ByteArrayContent(fileBytes);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, supabaseUrl);
+        var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
         request.Content = content;
         request.Headers.Add("Authorization", $"Bearer {supabaseKey}");
         request.Headers.Add("apikey", supabaseKey);
@@ -93,9 +98,38 @@ public class UserController : Controller
         if (!response.IsSuccessStatusCode)
             return StatusCode((int)response.StatusCode, "Upload failed");
 
-        // Construct public URL
-        var publicUrl = $"https://your-project.supabase.co/storage/v1/object/public/profile-pictures/{fileName}";
+        var publicUrl = $"https://{supabaseUrl}/storage/v1/object/profile-pictures/{fileName}";
 
         return Ok(new { url = publicUrl });
     }
+
+    [HttpGet("image/{fileName}")]
+    public async Task<IActionResult> GetImage(string fileName)
+    {
+        try
+        {
+            var url = _configuration.GetValue<string>("Supabase:ProjectUrl");
+            var serviceRoleKey = _configuration.GetValue<string>("Supabase:ServiceRoleKey");
+
+            var options = new SupabaseOptions
+            {
+                AutoRefreshToken = true,
+                AutoConnectRealtime = false
+            };
+
+            var supabase = new Client(url, serviceRoleKey, options);
+            await supabase.InitializeAsync();
+
+            var bucket = supabase.Storage.From(_bucketName);
+
+            var signedUrl = await bucket.CreateSignedUrl(fileName, 60 * 60);
+
+            return Ok(new { url = signedUrl });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
 }

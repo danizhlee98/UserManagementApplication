@@ -9,7 +9,7 @@ namespace UMA.Services
 {
     public interface IUserService
     {
-        Task<User> GetUserByEmail(string email);
+        Task<UserRequest> GetUserByEmail(string email);
         Task<bool> AddUserAsync(UserRequest userRequest);
         Task<bool> UpdateUserAsync(UserRequest userRequest);
         Task<bool> DeleteUserAsync(int id);

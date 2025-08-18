@@ -38,7 +38,6 @@ builder.Services.AddAuthentication(options =>
             var token = context.Request.Cookies["jwt"];
             if (!string.IsNullOrEmpty(token))
             {
-                Console.WriteLine("JWT middleware: " + token);
                 context.Token = token;
             }
             return Task.CompletedTask;

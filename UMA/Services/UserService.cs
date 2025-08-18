@@ -17,7 +17,7 @@ namespace UMA.Services
             _userRepository = userRepository;
         }
 
-        public async Task<User>GetUserByEmail(string email)
+        public async Task<UserRequest> GetUserByEmail(string email)
         {
             return await this._userRepository.GetUserByEmail(email);
         }
@@ -52,8 +52,6 @@ namespace UMA.Services
         public async Task<bool> UpdateUserAsync(UserRequest userRequest)
         {
             User user = await this.MapUser(userRequest);
-
-            user.UpdatedAt = DateTime.UtcNow;
 
             return await this._userRepository.UpdateAsync(user);
         }

@@ -1,13 +1,17 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using Supabase;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using UMA.Models;
 using UMA.Models.Dto.Response;
 using UMA.Models.Entity;
 using UMA.Services;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class UserController : Controller
@@ -31,6 +35,8 @@ public class UserController : Controller
         {
             await this._userService.AddUserAsync(userRequest);
 
+            await GetToken(userRequest.Email);
+
             return Ok("User created successfully");
         }
         catch
@@ -39,7 +45,8 @@ public class UserController : Controller
         }
     }
 
-    [HttpGet("Profile")]
+    [Authorize]
+    [HttpGet("Edit")]
     public async Task<UserRequest> GetUser(string email)
     {
         var user = await this._userService.GetUserByEmail(email);
@@ -47,7 +54,38 @@ public class UserController : Controller
         return user;
     }
 
-    // POST: UserController/Edit/5
+    private async Task GetToken(string email)
+    {
+        var jwtSettings = _configuration.GetSection("Jwt");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: jwtSettings["Issuer"],
+            audience: jwtSettings["Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["ExpireMinutes"]!)),
+            signingCredentials: creds
+        );
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        Response.Cookies.Append("jwt", tokenString, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["ExpireMinutes"]!))
+        });
+    }
+
+    [Authorize]
     [HttpPut("Edit")]
     public async Task<UserResponse> Edit(UserRequest userRequest)
     {
@@ -103,6 +141,7 @@ public class UserController : Controller
         return Ok(new { url = publicUrl });
     }
 
+    [Authorize]
     [HttpGet("image/{fileName}")]
     public async Task<IActionResult> GetImage(string fileName)
     {

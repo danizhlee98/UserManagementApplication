@@ -22,13 +22,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<UserResponse> Login([FromBody] LoginRequest request)
     {
+
         UserResponse userResponse = await this._userService.ValidateUser(request);
 
         if (!userResponse.Success)
         {
-            return Unauthorized(userResponse.Message);
+            return userResponse;
         }
 
         var jwtSettings = _config.GetSection("Jwt");
@@ -59,7 +60,11 @@ public class AuthController : ControllerBase
             Expires = DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["ExpireMinutes"]!))
         });
 
-        return Ok(new { message = "Login successful" });
+        return new UserResponse
+        {
+            Success = true,
+            Message = "Login successful"
+        };
     }
 
     [HttpGet("check-cookie")]

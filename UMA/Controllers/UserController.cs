@@ -46,10 +46,10 @@ public class UserController : Controller
 
             if (!userResponse.Success)
             {
-                return Conflict(userResponse);
+                return Ok(userResponse);
             }
 
-            return Ok(userResponse.Message);
+            return Ok(userResponse);
         }
         catch
         {

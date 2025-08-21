@@ -22,12 +22,29 @@ namespace UMA.Services
             return await this._userRepository.GetUserByEmail(email);
         }
 
-        public async Task<bool> AddUserAsync(UserRequest userRequest)
+        public async Task<UserResponse> AddUserAsync(UserRequest userRequest)
         {
-            User user = await this.MapUser(userRequest);
-            user.CreatedAt = DateTime.UtcNow;
+            try
+            {
+                bool userExist = await this._userRepository.UserExist(userRequest.Email);
 
-            return await this._userRepository.AddAsync(user);
+                if (userExist)
+                {
+                    return new UserResponse { Success = false, Message = "Email already exist" };
+                }
+
+                User user = await this.MapUser(userRequest);
+                user.CreatedAt = DateTime.UtcNow;
+
+                var result = await this._userRepository.AddAsync(user);
+
+                return new UserResponse { Success = result, Message = "User created successfully" };
+            }
+            catch(Exception ex)
+            {
+                return new UserResponse { Success = false, Message = ex.Message };
+            }
+            
         }
 
         private async Task<User> MapUser(UserRequest userRequest)

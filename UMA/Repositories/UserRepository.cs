@@ -16,6 +16,19 @@ namespace UMA.Repositories
             _context = context;
         }
 
+        public async Task<bool> UserExist(string email)
+        {
+            var users = await this._context.Users.AsNoTracking()
+                                .Where(col => col.Email.Equals(email))
+                                .ToListAsync();
+
+            if (users.Count > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
         public async Task<UserRequest> GetUserByEmail(string email)
         {
             var user = await this._context.Users

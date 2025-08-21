@@ -10,12 +10,14 @@ namespace TestUMA
     public class AuthControllerTest
     {
         private readonly Mock<IUserService> _mockUserService;
+        private readonly Mock<IAuthService> _mockAuthService;
         private readonly IConfiguration _config;
         private readonly DefaultHttpContext _httpContext;
 
         public AuthControllerTest()
         {
             _mockUserService = new Mock<IUserService>();
+            _mockAuthService = new Mock<IAuthService>();
 
             var inMemorySettings = new Dictionary<string, string>
         {
@@ -43,7 +45,7 @@ namespace TestUMA
                 .Setup(s => s.ValidateUser(It.IsAny<LoginRequest>()))
                 .ReturnsAsync(new UserResponse { Success = false, Message = "Email not found" });
 
-            var controller = new AuthController(_config, _mockUserService.Object)
+            var controller = new AuthController(_config, _mockUserService.Object, _mockAuthService.Object)
             {
                 ControllerContext = { HttpContext = _httpContext }
             };
@@ -67,7 +69,7 @@ namespace TestUMA
                 .Setup(s => s.ValidateUser(It.IsAny<LoginRequest>()))
                 .ReturnsAsync(new UserResponse { Success = false, Message = "Wrong Password" });
 
-            var controller = new AuthController(_config, _mockUserService.Object)
+            var controller = new AuthController(_config, _mockUserService.Object, _mockAuthService.Object)
             {
                 ControllerContext = { HttpContext = _httpContext }
             };
@@ -91,7 +93,7 @@ namespace TestUMA
                 .Setup(s => s.ValidateUser(It.IsAny<LoginRequest>()))
                 .ReturnsAsync(new UserResponse { Success = true, Message = "Login successful" });
 
-            var controller = new AuthController(_config, _mockUserService.Object)
+            var controller = new AuthController(_config, _mockUserService.Object, _mockAuthService.Object)
             {
                 ControllerContext = { HttpContext = _httpContext }
             };

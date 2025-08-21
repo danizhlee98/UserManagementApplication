@@ -40,14 +40,15 @@ namespace TestUMA
 
 
         [Fact]
-        public async Task CreateUser()
+        public async Task CreateUserWithNonExistEmail()
         {
             // Arrange
-            var userRequest = new UserRequest { FirstName = "danizh", LastName = "lee", Email = "danizhlee98@gmail.com", Password = "abc123", PathUrl = "Testing"};
+            var userRequest = new UserRequest { FirstName = "danizh", LastName = "lee", Email = "danizhlee@gmail.com", Password = "abc123", PathUrl = "Testing" };
+            UserResponse userResponse = new UserResponse { Success = true, Message = "User created successfully" };
 
             _mockUserService
                 .Setup(s => s.AddUserAsync(userRequest))
-                .ReturnsAsync(true);
+                .ReturnsAsync(userResponse);
 
             var controller = new UserController(_mockUserService.Object, _httpClient, _config);
 
@@ -62,7 +63,33 @@ namespace TestUMA
             // Assert
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("User created successfully", okResult.Value);
+            Assert.Equal(userResponse.Message, okResult.Value);
+        }
+
+        [Fact]
+        public async Task Create_ReturnFailure_WhenEmailEixst()
+        {
+            // Arrange
+            var userRequest = new UserRequest { FirstName = "danizh", LastName = "lee", Email = "abc123@gmail.com", Password = "asdqwezxc", PathUrl = "Testing" };
+            UserResponse userResponse = new UserResponse { Success = false, Message = "Email already exist" };
+            _mockUserService
+                .Setup(s => s.AddUserAsync(userRequest))
+                .ReturnsAsync(userResponse);
+
+            var controller = new UserController(_mockUserService.Object, _httpClient, _config);
+
+            // Act
+            var result = await controller.Create(userRequest);
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            };
+
+            // Assert
+
+            var conflict = Assert.IsType<ConflictObjectResult>(result);
+            Assert.Equal(userResponse, conflict.Value);
         }
 
     }

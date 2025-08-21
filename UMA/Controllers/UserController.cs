@@ -33,11 +33,23 @@ public class UserController : Controller
     {
         try
         {
-            await this._userService.AddUserAsync(userRequest);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new UserResponse
+                {
+                    Success = false,
+                    Message = "Invalid input"
+                });
+            }
 
-            await GetToken(userRequest.Email);
+            UserResponse userResponse = await this._userService.AddUserAsync(userRequest);
 
-            return Ok("User created successfully");
+            if (!userResponse.Success)
+            {
+                return Conflict(userResponse);
+            }
+
+            return Ok(userResponse.Message);
         }
         catch
         {

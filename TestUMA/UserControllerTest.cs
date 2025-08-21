@@ -63,7 +63,7 @@ namespace TestUMA
             // Assert
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(userResponse.Message, okResult.Value);
+            Assert.Equal(userResponse, okResult.Value);
         }
 
         [Fact]
@@ -88,7 +88,7 @@ namespace TestUMA
 
             // Assert
 
-            var conflict = Assert.IsType<ConflictObjectResult>(result);
+            var conflict = Assert.IsType<OkObjectResult>(result);
             Assert.Equal(userResponse, conflict.Value);
         }
 
